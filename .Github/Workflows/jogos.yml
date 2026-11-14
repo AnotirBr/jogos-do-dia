@@ -1,0 +1,40 @@
+name: Coletar jogos do dia
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # a cada 15 minutos (96 consultas por dia)
+  workflow_dispatch:          # botão para rodar na hora
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jogos
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Buscar os jogos
+        env:
+          FONTES: ${{ secrets.FONTES }}
+        run: node collect.mjs
+
+      - name: Publicar se mudou
+        run: |
+          if [ -n "$(git status --porcelain docs/jogos.json)" ]; then
+            git config user.name  "jogos-bot"
+            git config user.email "jogos-bot@users.noreply.github.com"
+            git add docs/jogos.json
+            git commit -m "jogos: $(date -u +%H:%M) UTC"
+            git push
+          else
+            echo "nada mudou"
+          fi
